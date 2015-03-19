@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 class Cloudfront(object):
+
     def __init__(self, awsaccess, awssecret, base, keyid, privatekey):
         boto.connect_cloudfront(
             awsaccess,
@@ -88,6 +89,7 @@ class Storage(coreboto.Base):
                 self._config.cloudfront['keyid'],
                 self._config.cloudfront['keysecret']
             ).sign
+
         else:
             self.signer = None
 
@@ -98,18 +100,26 @@ class Storage(coreboto.Base):
             boto.config.set('s3', 'use-sigv4', 'True')
 
         if self._config.s3_region is not None:
-            return boto.s3.connect_to_region(
-                region_name=self._config.s3_region,
-                aws_access_key_id=self._config.s3_access_key,
-                aws_secret_access_key=self._config.s3_secret_key,
-                **kwargs)
+            if self._config.s3_access_key is not None:
+                return boto.s3.connect_to_region(
+                    region_name=self._config.s3_region,
+                    aws_access_key_id=self._config.s3_access_key,
+                    aws_secret_access_key=self._config.s3_secret_key,
+                    **kwargs)
+            else:
+                return boto.s3.connect_to_region(
+                    region_name=self._config.s3_region,
+                    **kwargs)
         logger.warn("No S3 region specified, using boto default region, " +
                     "this may affect performance and stability.")
 
-        return boto.s3.connection.S3Connection(
-            self._config.s3_access_key,
-            self._config.s3_secret_key,
-            **kwargs)
+        if self._config.s3_access_key is not None:
+            return boto.s3.connection.S3Connection(
+                self._config.s3_access_key,
+                self._config.s3_secret_key,
+                **kwargs)
+        else:
+            return boto.s3.connection.S3Connection(**kwargs)
 
     def makeKey(self, path):
         return boto.s3.key.Key(self._boto_bucket, path)
